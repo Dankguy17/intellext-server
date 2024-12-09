@@ -5,7 +5,7 @@ const QuizAttempt = require('../models/QuizAttempt');
 const Quiz = require('../models/Quiz');
 
 // Get all attempts for the current user
-router.get('/quiz-attempts', auth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const attempts = await QuizAttempt.find({ user: req.user.id })
       .populate('quiz', 'title subject difficulty')
@@ -17,7 +17,7 @@ router.get('/quiz-attempts', auth, async (req, res) => {
 });
 
 // Get attempts for a specific quiz
-router.get('/quizzes/:quizId/attempts', auth, async (req, res) => {
+router.get('/quiz/:quizId', auth, async (req, res) => {
   try {
     const attempts = await QuizAttempt.find({
       user: req.user.id,
@@ -30,32 +30,19 @@ router.get('/quizzes/:quizId/attempts', auth, async (req, res) => {
 });
 
 // Submit a new quiz attempt
-router.post('/quizzes/:quizId/attempts', auth, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.quizId);
+    const { quiz: quizId, score, answers } = req.body;
+    const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    const { answers } = req.body;
-    let score = 0;
-    const gradedAnswers = answers.map(answer => {
-      const question = quiz.questions.find(q => q._id.toString() === answer.questionId);
-      const isCorrect = question.correctAnswer === answer.selectedAnswer;
-      if (isCorrect) score++;
-      return {
-        ...answer,
-        correct: isCorrect
-      };
-    });
-
-    const finalScore = Math.round((score / quiz.questions.length) * 100);
-
     const attempt = new QuizAttempt({
       user: req.user.id,
-      quiz: req.params.quizId,
-      score: finalScore,
-      answers: gradedAnswers
+      quiz: quizId,
+      score,
+      answers
     });
 
     await attempt.save();
