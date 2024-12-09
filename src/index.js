@@ -10,29 +10,27 @@ const courseRoutes = require('./routes/courses');
 const app = express();
 
 // CORS configuration
-const corsOptions = {
+const allowedOrigins = ['http://localhost:8081', 'http://localhost:3000', 'https://intellext.vercel.app'];
+
+app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = ['http://localhost:8081', 'http://localhost:3000', 'https://intellext.vercel.app'];
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
     }
+    return callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // Increase preflight cache to 10 minutes
-};
+  maxAge: 600 // 10 minutes
+}));
 
-// Apply CORS middleware
-app.use(cors(corsOptions));
+// Body parser middleware
 app.use(express.json());
-
-// Options preflight for all routes
-app.options('*', cors(corsOptions));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
@@ -45,10 +43,10 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/quiz-attempts', quizAttemptRoutes);
 app.use('/api/courses', courseRoutes);
 
-// Error handling
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(500).json({ error: err.message || 'Something went wrong!' });
 });
 
 const port = process.env.PORT || 3000;
